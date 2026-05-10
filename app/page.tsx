@@ -7,9 +7,10 @@ import {
   ChevronRight, HelpCircle, SlidersHorizontal, CheckCircle2, 
   Save, Trash2, Calendar, X, CheckCircle, AlertCircle, 
   MessageSquare, Brain, ListChecks, Target, Bookmark, Trophy,
-  ChevronDown
+  ChevronDown, Users, Plus, ArrowLeft
 } from 'lucide-react';
-
+import MisPizarras from './components/MisPizarras';
+import CalendarioClases from './components/CalendarioClases';
 // --- INICIALIZAR SUPABASE ---
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -22,17 +23,22 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 function TarjetaVocabulario({ palabra }: { palabra: any }) {
   const [revelado, setRevelado] = useState(false);
   return (
-    <div onClick={() => setRevelado(!revelado)} className={`relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-300 min-h-[160px] flex flex-col items-center justify-center text-center ${revelado ? 'border-[#4338ca] bg-indigo-50 shadow-md' : 'border-gray-200 bg-white hover:border-indigo-300'}`}>
+    <div onClick={() => setRevelado(!revelado)} className={`relative p-5 rounded-2xl border-2 cursor-pointer transition-all duration-300 min-h-[140px] flex flex-col items-center justify-center text-center shadow-sm hover:shadow-lg ${
+      revelado 
+        ? 'border-indigo-400 bg-gradient-to-br from-indigo-50 to-purple-50 shadow-md scale-105' 
+        : 'border-gray-200 bg-white hover:border-indigo-300'
+    }`}>
       <h3 className="text-xl font-bold text-[#1e1b4b] mb-2">{palabra.espanol}</h3>
       {revelado ? (
         <div className="animate-fade-in">
-          <p className="text-gray-500 mb-1 font-medium">{palabra.fonetica}</p>
-          <p className="text-2xl text-red-600 font-bold">{palabra.traduccion}</p>
+          <p className="text-indigo-400 mb-1 font-medium text-sm">{palabra.fonetica}</p>
+          <p className="text-2xl text-red-500 font-bold">{palabra.traduccion}</p>
+          {palabra.pinyin && <p className="text-sm text-gray-400 mt-1 italic">{palabra.pinyin}</p>}
         </div>
       ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#4338ca] text-white rounded-xl m-1 opacity-0 hover:opacity-100 transition-opacity">
-          <span className="text-sm font-medium">Clic para revelar...</span>
-          <HelpCircle className="w-4 h-4 mt-1 opacity-70 shrink-0" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl m-1 opacity-0 hover:opacity-100 transition-opacity">
+          <span className="text-sm font-medium">Clic para revelar</span>
+          <HelpCircle className="w-5 h-5 mt-1 opacity-80" />
         </div>
       )}
     </div>
@@ -81,7 +87,7 @@ function TextoConTooltips({ texto, diccionario }: { texto: string, diccionario: 
 }
 
 // =============================================
-// NUEVOS RENDERIZADORES PARA AGENTES
+// RENDERIZADORES ORIGINALES
 // =============================================
 
 function ResumenDiapositiva({ datos }: { datos: any }) {
@@ -135,12 +141,309 @@ function CierreDiapositiva({ datos }: { datos: any }) {
 }
 
 // =============================================
+// GRAMÁTICA (DATOS PUROS)
+// =============================================
+function GramaticaDiapositiva({ datos }: { datos: any }) {
+  const coloresTema: Record<string, string> = {
+    'tabla_conjugacion': 'from-indigo-50 to-blue-50 border-indigo-200',
+    'tabla_comparativa': 'from-emerald-50 to-teal-50 border-emerald-200',
+    'mapa_mental': 'from-purple-50 to-pink-50 border-purple-200',
+    'esquema_pasos': 'from-amber-50 to-orange-50 border-amber-200'
+  };
+  const colorFondo = coloresTema[datos.tipo_visual] || 'from-gray-50 to-slate-50 border-gray-200';
+
+  return (
+    <div className="w-full">
+      {datos.imagen_url && (
+        <div className="mb-6 rounded-2xl overflow-hidden shadow-lg">
+          <img src={datos.imagen_url} alt={datos.titulo} className="w-full h-auto" />
+        </div>
+      )}
+      
+      <div className={`bg-gradient-to-br ${colorFondo} rounded-2xl p-6 mb-6 border`}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Brain className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-[#1e1b4b]">{datos.titulo}</h2>
+            <p className="text-sm text-gray-500">Tema {datos.tema_numero} de {datos.total_temas}</p>
+          </div>
+        </div>
+
+        {datos.explicacion && (
+          <p className="text-gray-700 text-lg leading-relaxed bg-white/60 rounded-xl p-4">{datos.explicacion}</p>
+        )}
+      </div>
+
+      {datos.ejemplos?.length > 0 && (
+        <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-5 rounded-2xl mb-6 text-white shadow-lg">
+          <p className="font-bold text-lg mb-3 flex items-center gap-2">💡 Ejemplos prácticos</p>
+          <ul className="space-y-2">
+            {datos.ejemplos.map((ej: string, i: number) => (
+              <li key={i} className="bg-white/20 rounded-lg px-4 py-2 backdrop-blur-sm">{ej}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {datos.tipo_visual === 'mapa_mental' && datos.datos_visual?.ramas && (
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          {datos.datos_visual.ramas.map((rama: string, i: number) => (
+            <div key={i} className="bg-gradient-to-r from-purple-100 to-pink-100 p-4 rounded-xl border-2 border-purple-200 font-medium text-gray-700 shadow-sm hover:shadow-md transition-shadow">
+              <span className="text-purple-500 mr-2 text-lg">●</span> {rama}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {datos.datos_visual?.columnas && (
+        <div className="overflow-hidden rounded-2xl border-2 border-indigo-200 shadow-lg mb-6">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-gradient-to-r from-indigo-600 to-purple-600">
+                {datos.datos_visual.columnas.map((col: string, i: number) => (
+                  <th key={i} className="p-4 font-bold text-white text-sm">{col}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {datos.datos_visual.filas?.map((fila: string[], i: number) => (
+                <tr key={i} className={`${i % 2 === 0 ? 'bg-white' : 'bg-indigo-50/50'} hover:bg-indigo-100 transition-colors`}>
+                  {fila.map((celda: string, j: number) => (
+                    <td key={j} className="p-4 text-gray-700 font-medium">{celda}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {datos.errores_comunes?.length > 0 && (
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl p-6 shadow-lg">
+          <h3 className="text-xl font-bold text-amber-800 mb-4 flex items-center gap-2">
+            <span className="text-2xl">⚠️</span> Errores comunes
+          </h3>
+          <div className="space-y-3">
+            {datos.errores_comunes.map((err: any, i: number) => (
+              <div key={i} className="bg-white rounded-xl p-4 border border-amber-200 shadow-sm">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-sm font-bold">{err.error}</span>
+                  <span className="text-gray-400 text-lg">→</span>
+                  <span className="bg-green-100 text-green-700 px-3 py-1.5 rounded-lg text-sm font-bold">{err.correccion}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================
+// EJERCICIOS (DATOS PUROS)
+// =============================================
+function EjercicioDiapositiva({ datos }: { datos: any }) {
+  const [respuestas, setRespuestas] = useState<Record<number, string>>({});
+  const [corregido, setCorregido] = useState(false);
+
+  useEffect(() => {
+    setRespuestas({});
+    setCorregido(false);
+  }, [datos.titulo]);
+
+  const manejarCambio = (index: number, valor: string) => {
+    setRespuestas({ ...respuestas, [index]: valor });
+  };
+
+      const corregir = () => {
+    setCorregido(true);
+    
+    const total = datos.preguntas?.length || 0;
+    let correctos = 0;
+    datos.preguntas?.forEach((pregunta: any, i: number) => {
+      const respuestaUsuario = (respuestas[i] || '').toLowerCase().trim();
+      const respuestaCorrecta = (pregunta.respuesta || '').toLowerCase().trim();
+      if (respuestaUsuario === respuestaCorrecta) correctos++;
+    });
+
+    try {
+      const alumnoGuardado = localStorage.getItem('alumnoSeleccionado');
+      if (alumnoGuardado) {
+        const alumno = JSON.parse(alumnoGuardado);
+        supabase.from('historial_clases').insert([{
+          alumno_id: alumno.id,
+          tema: `Ejercicio: ${datos.titulo}`,
+          nivel: '',
+          enfoque: '',
+          temas_gramaticales: [],
+          ejercicios_completados: total,
+          ejercicios_correctos: correctos
+        }]).then(({ error }) => {
+          if (error) console.error('Error guardando ejercicio:', error);
+          else console.log('✅ Ejercicio guardado:', correctos + '/' + total);
+        });
+      }
+    } catch (e) {
+      console.error('Error al guardar ejercicio:', e);
+    }
+  };
+
+  const esMultipleChoice = datos.tipo_ejercicio === 'multiple_choice';
+  const esCompletar = datos.tipo_ejercicio === 'completar_huecos';
+  const esVF = datos.tipo_ejercicio === 'verdadero_falso';
+    const esOrdenar = datos.tipo_ejercicio === 'ordenar_palabras';
+
+  return (
+    <div className="w-full max-w-3xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-[#1e1b4b] flex items-center gap-2">
+          <ListChecks className="w-6 h-6 text-indigo-600" /> {datos.titulo}
+        </h2>
+        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+          {datos.ejercicio_numero}/{datos.total_ejercicios}
+        </span>
+      </div>
+      <p className="text-gray-600 mb-6 italic">{datos.instruccion}</p>
+      
+      <div className="space-y-4">
+        {datos.preguntas?.map((pregunta: any, i: number) => (
+          <div key={i} className="bg-white border border-gray-200 rounded-xl p-5">
+            <p className="text-gray-800 font-medium mb-3">{pregunta.frase}</p>
+            
+            {esMultipleChoice && pregunta.opciones && (
+              <div className="flex flex-wrap gap-2">
+                {pregunta.opciones.map((op: string, j: number) => {
+                  const seleccionada = respuestas[i] === op;
+                  const esCorrecta = corregido && op === pregunta.respuesta;
+                  const esIncorrecta = corregido && seleccionada && op !== pregunta.respuesta;
+                  
+                  return (
+                    <button
+                      key={j}
+                      onClick={() => manejarCambio(i, op)}
+                      disabled={corregido}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        esCorrecta ? 'bg-green-200 border-green-500 text-green-800 border-2' :
+                        esIncorrecta ? 'bg-red-200 border-red-500 text-red-800 border-2' :
+                        seleccionada ? 'bg-indigo-100 border-indigo-400 text-indigo-800 border-2' :
+                        'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      {op}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {esCompletar && (
+              <div>
+                <input
+                  type="text"
+                  value={respuestas[i] || ''}
+                  onChange={(e) => manejarCambio(i, e.target.value)}
+                  disabled={corregido}
+                  className={`w-full p-3 border rounded-lg ${
+                    corregido 
+                      ? (respuestas[i] || '').toLowerCase().trim() === (pregunta.respuesta || '').toLowerCase().trim()
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-red-500 bg-red-50'
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Escribe tu respuesta..."
+                />
+                {corregido && (
+                  <p className={`text-sm mt-1 ${(respuestas[i] || '').toLowerCase().trim() === (pregunta.respuesta || '').toLowerCase().trim() ? 'text-green-600' : 'text-red-600'}`}>
+                    {(respuestas[i] || '').toLowerCase().trim() === (pregunta.respuesta || '').toLowerCase().trim() ? '✅ Correcto' : `❌ Respuesta: ${pregunta.respuesta}`}
+                  </p>
+                )}
+              </div>
+            )}
+
+                        {esVF && (
+              <div className="flex gap-3">
+                {['Verdadero', 'Falso'].map((op, j) => {
+                  const seleccionada = respuestas[i] === op;
+                  const esCorrecta = corregido && op === pregunta.respuesta;
+                  const esIncorrecta = corregido && seleccionada && op !== pregunta.respuesta;
+                  
+                  return (
+                    <button
+                      key={j}
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); manejarCambio(i, op); }}
+                      disabled={corregido}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        esCorrecta ? 'bg-green-200 border-green-500 text-green-800 border-2' :
+                        esIncorrecta ? 'bg-red-200 border-red-500 text-red-800 border-2' :
+                        seleccionada ? 'bg-indigo-100 border-indigo-400 text-indigo-800 border-2' :
+                        'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      {op}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {esOrdenar && (
+              <div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {pregunta.palabras_desordenadas?.map((palabra: string, j: number) => (
+                    <button
+                      key={j}
+                      onClick={() => {
+                        const actual = respuestas[i] || '';
+                        setRespuestas({ ...respuestas, [i]: actual + palabra + ' ' });
+                      }}
+                      disabled={corregido}
+                      className="px-3 py-1.5 bg-indigo-100 text-indigo-800 rounded-lg text-sm font-medium hover:bg-indigo-200 transition-colors"
+                    >
+                      {palabra}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="text"
+                  value={respuestas[i] || ''}
+                  readOnly
+                  className={`w-full p-3 border rounded-lg bg-gray-50 ${corregido ? ((respuestas[i] || '').toLowerCase().trim() === (pregunta.respuesta || '').toLowerCase().trim() ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50') : 'border-gray-300'}`}
+                  placeholder="Haz clic en las palabras para formar la frase..."
+                />
+                <button onClick={() => setRespuestas({ ...respuestas, [i]: '' })} className="mt-2 text-xs text-gray-500 hover:text-red-500">Limpiar</button>
+                {corregido && (
+                  <p className={`text-sm mt-1 ${(respuestas[i] || '').toLowerCase().trim() === (pregunta.respuesta || '').toLowerCase().trim() ? 'text-green-600' : 'text-red-600'}`}>
+                    {(respuestas[i] || '').toLowerCase().trim() === (pregunta.respuesta || '').toLowerCase().trim() ? '✅ Correcto' : `❌ Respuesta: ${pregunta.respuesta}`}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          
+        ))}
+      </div>
+          
+      {!corregido && (
+        <button
+          onClick={corregir}
+          className="mt-6 bg-green-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-green-700 transition-colors shadow-lg"
+        >
+          Corregir ejercicio
+        </button>
+      )}
+    </div>
+  );
+}
+
+// =============================================
 // PANTALLA PRINCIPAL
 // =============================================
 export default function PanelLoominAI() {
-  const [vistaActual, setVistaActual] = useState<'inicio' | 'pizarras'>('inicio');
+const [vistaActual, setVistaActual] = useState<'inicio' | 'pizarras' | 'alumnos' | 'registro_alumno' | 'perfil_alumno' | 'calendario' | 'editar_alumno'>('inicio');
 
-  // Estados de Formulario ACTUALIZADOS
   const [tema, setTema] = useState('');
   const [nivel, setNivel] = useState('A1');
   const [idiomaEstudiante, setIdiomaEstudiante] = useState('Chino Mandarín');
@@ -150,41 +453,196 @@ export default function PanelLoominAI() {
   const [vocabularioEspecifico, setVocabularioEspecifico] = useState('');
   const [cantidadEjercicios, setCantidadEjercicios] = useState(3);
   const [mostrarSelectorEjercicios, setMostrarSelectorEjercicios] = useState(false);
+    const [alumnos, setAlumnos] = useState<any[]>([]);
+  const [alumnoSeleccionado, setAlumnoSeleccionado] = useState<any>(null);
+  const [cargandoAlumnos, setCargandoAlumnos] = useState(false);
+  const [guardandoAlumno, setGuardandoAlumno] = useState(false);
+  const [formNombre, setFormNombre] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [formTelefono, setFormTelefono] = useState('');
+  const [formNivelActual, setFormNivelActual] = useState('A1');
+  const [formNivelObjetivo, setFormNivelObjetivo] = useState('A2');
+  const [formIdiomaNativo, setFormIdiomaNativo] = useState('Chino Mandarín');
+  const [formModalidad, setFormModalidad] = useState('online');
+  const [formTipoClase, setFormTipoClase] = useState('particular');
+  const [formClasesPorSemana, setFormClasesPorSemana] = useState(1);
+  const [formNecesidades, setFormNecesidades] = useState('');
+  const [formIntereses, setFormIntereses] = useState('');
+  const [formDebilidades, setFormDebilidades] = useState('');
+  const [formFortalezas, setFormFortalezas] = useState('');
+  const [formEstiloAprendizaje, setFormEstiloAprendizaje] = useState('visual');
 
-  // Estados de Pizarra
   const [cargando, setCargando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [diapositivas, setDiapositivas] = useState<any[]>([]);
   const [slideActual, setSlideActual] = useState(0);
   const [pizarrasGuardadas, setPizarrasGuardadas] = useState<any[]>([]);
   
-  // Notificación del sistema
   const [notificacion, setNotificacion] = useState<{mensaje: string, tipo: 'exito' | 'error'} | null>(null);
+const [pantallaCompleta, setPantallaCompleta] = useState(false);
 
+useEffect(() => {
+  if (pantallaCompleta) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+  return () => { document.body.style.overflow = ''; };
+}, [pantallaCompleta]);
   const mostrarNotificacion = (mensaje: string, tipo: 'exito' | 'error') => {
     setNotificacion({ mensaje, tipo });
     setTimeout(() => setNotificacion(null), 3500); 
   };
 
-  const cargarPizarrasDeNube = async () => {
-    const { data } = await supabase.from('pizarras').select('*').order('created_at', { ascending: false }); 
+    const cargarPizarrasDeNube = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    const { data } = await supabase.from('pizarras').select('*').eq('profesor_id', userId).order('created_at', { ascending: false }); 
     if (data) setPizarrasGuardadas(data);
   };
 
   useEffect(() => { cargarPizarrasDeNube(); }, []);
+  
+   const cargarAlumnos = async () => {
+    setCargandoAlumnos(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    const { data } = await supabase.from('alumnos').select('*').eq('profesor_id', userId).order('created_at', { ascending: false });
+    if (data) setAlumnos(data);
+    setCargandoAlumnos(false);
+  };
 
-  const guardarPizarra = async () => {
+  useEffect(() => {
+    if (vistaActual === 'alumnos') cargarAlumnos();
+  }, [vistaActual]);
+
+    const guardarAlumno = async () => {
+    if (!formNombre) return mostrarNotificacion('El nombre es obligatorio', 'error');
+    setGuardandoAlumno(true);
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    const { error } = await supabase.from('alumnos').insert([{
+      profesor_id: userId,
+      nombre: formNombre, email: formEmail, telefono: formTelefono,
+      nivel_actual: formNivelActual, nivel_objetivo: formNivelObjetivo,
+      idioma_nativo: formIdiomaNativo, modalidad: formModalidad,
+      tipo_clase: formTipoClase, clases_por_semana: formClasesPorSemana,
+      necesidades: formNecesidades, intereses: formIntereses,
+      debilidades: formDebilidades, fortalezas: formFortalezas,
+      estilo_aprendizaje: formEstiloAprendizaje
+    }]);
+    if (!error) { mostrarNotificacion('Alumno registrado', 'exito'); limpiarFormularioAlumno(); setVistaActual('alumnos'); }
+    else { mostrarNotificacion('Error al registrar', 'error'); }
+    setGuardandoAlumno(false);
+  };
+
+  const limpiarFormularioAlumno = () => {
+    setFormNombre(''); setFormEmail(''); setFormTelefono('');
+    setFormNivelActual('A1'); setFormNivelObjetivo('A2');
+    setFormIdiomaNativo('Chino Mandarín'); setFormModalidad('online');
+    setFormTipoClase('particular'); setFormClasesPorSemana(1);
+    setFormNecesidades(''); setFormIntereses('');
+    setFormDebilidades(''); setFormFortalezas('');
+    setFormEstiloAprendizaje('visual');
+  };
+
+    const verPerfilAlumno = async (alumno: any) => {
+    const { data: metricas } = await supabase
+      .from('clases_programadas')
+      .select('estado')
+      .eq('alumno_id', alumno.id);
+
+    const total = metricas?.length || 0;
+    const tomadas = metricas?.filter(m => m.estado === 'tomada').length || 0;
+    const canceladas = metricas?.filter(m => m.estado === 'cancelada').length || 0;
+    const noTomadas = metricas?.filter(m => m.estado === 'no_tomada').length || 0;
+    const porcentajeAsistencia = total > 0 ? Math.round((tomadas / (tomadas + noTomadas)) * 100) || 0 : 0;
+
+    setAlumnoSeleccionado({
+      ...alumno,
+      metricas: {
+        total,
+        tomadas,
+        canceladas,
+        noTomadas,
+        porcentajeAsistencia
+      }
+    });
+    setVistaActual('perfil_alumno');
+  };
+  const cargarDatosEdicion = () => {
+    if (alumnoSeleccionado) {
+      setFormNombre(alumnoSeleccionado.nombre || '');
+      setFormEmail(alumnoSeleccionado.email || '');
+      setFormTelefono(alumnoSeleccionado.telefono || '');
+      setFormNivelActual(alumnoSeleccionado.nivel_actual || 'A1');
+      setFormNivelObjetivo(alumnoSeleccionado.nivel_objetivo || 'A2');
+      setFormIdiomaNativo(alumnoSeleccionado.idioma_nativo || 'Chino Mandarín');
+      setFormModalidad(alumnoSeleccionado.modalidad || 'online');
+      setFormTipoClase(alumnoSeleccionado.tipo_clase || 'particular');
+      setFormClasesPorSemana(alumnoSeleccionado.clases_por_semana || 1);
+      setFormNecesidades(alumnoSeleccionado.necesidades || '');
+      setFormIntereses(alumnoSeleccionado.intereses || '');
+      setFormDebilidades(alumnoSeleccionado.debilidades || '');
+      setFormFortalezas(alumnoSeleccionado.fortalezas || '');
+      setFormEstiloAprendizaje(alumnoSeleccionado.estilo_aprendizaje || 'visual');
+      setVistaActual('editar_alumno');
+    }
+  };
+
+  const guardarEdicionAlumno = async () => {
+    if (!formNombre) return mostrarNotificacion('El nombre es obligatorio', 'error');
+    setGuardandoAlumno(true);
+    const { error } = await supabase.from('alumnos').update({
+      nombre: formNombre, email: formEmail, telefono: formTelefono,
+      nivel_actual: formNivelActual, nivel_objetivo: formNivelObjetivo,
+      idioma_nativo: formIdiomaNativo, modalidad: formModalidad,
+      tipo_clase: formTipoClase, clases_por_semana: formClasesPorSemana,
+      necesidades: formNecesidades, intereses: formIntereses,
+      debilidades: formDebilidades, fortalezas: formFortalezas,
+      estilo_aprendizaje: formEstiloAprendizaje
+    }).eq('id', alumnoSeleccionado.id);
+    if (!error) {
+      mostrarNotificacion('Alumno actualizado', 'exito');
+      setAlumnoSeleccionado({ ...alumnoSeleccionado, nombre: formNombre, nivel_actual: formNivelActual, nivel_objetivo: formNivelObjetivo, idioma_nativo: formIdiomaNativo, modalidad: formModalidad, tipo_clase: formTipoClase, necesidades: formNecesidades, intereses: formIntereses, debilidades: formDebilidades, fortalezas: formFortalezas, estilo_aprendizaje: formEstiloAprendizaje });
+      setVistaActual('perfil_alumno');
+    } else {
+      mostrarNotificacion('Error al actualizar', 'error');
+    }
+    setGuardandoAlumno(false);
+  };
+  const eliminarAlumno = async (id: string) => {
+    const { error } = await supabase.from('alumnos').delete().eq('id', id);
+    if (!error) { setAlumnos(alumnos.filter(a => a.id !== id)); mostrarNotificacion('Alumno eliminado', 'exito'); }
+  };
+
+  const generarPizarraPersonalizada = (alumno: any) => {
+    setAlumnoSeleccionado(alumno);
+    setTema(''); setNivel(alumno.nivel_actual || 'A1');
+    setIdiomaEstudiante(alumno.idioma_nativo || 'Chino Mandarín');
+    setEnfoque('Explicativo'); setVocabularioEspecifico('');
+    setTemaGramatical(''); setCantidadEjercicios(3);
+    setVistaActual('inicio');
+    mostrarNotificacion(`Prepara la pizarra para ${alumno.nombre}`, 'exito');
+        localStorage.setItem('alumnoSeleccionado', JSON.stringify(alumno));
+  };
+    
+
+    const guardarPizarra = async () => {
     if (diapositivas.length === 0) return;
     setGuardando(true);
-    const { data } = await supabase.from('pizarras').insert([
-      { tema: tema || 'Clase sin título', nivel, fecha: new Date().toLocaleDateString(), diapositivas }
+    const { data: userData } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+        const { data, error } = await supabase.from('pizarras').insert([
+      { tema: tema || 'Clase sin título', nivel, fecha: new Date().toLocaleDateString(), diapositivas, profesor_id: userId }
     ]).select();
-    if (data) {
+       if (data) {
       setPizarrasGuardadas([data[0], ...pizarrasGuardadas]);
       mostrarNotificacion('¡Pizarra guardada con éxito!', 'exito');
     } else {
-      mostrarNotificacion('Error al guardar.', 'error');
-    }
+      console.error("Error al guardar pizarra:", error);
+      mostrarNotificacion('Error al guardar: ' + (error?.message || 'desconocido'), 'error');
+       }
     setGuardando(false);
   };
 
@@ -204,7 +662,7 @@ export default function PanelLoominAI() {
     setVistaActual('inicio');
   };
 
-  const manejarGeneracion = async () => {
+    const manejarGeneracion = async () => {
     if (!tema) return mostrarNotificacion('Ingresa un tema.', 'error');
     setCargando(true);
     setDiapositivas([]);
@@ -215,7 +673,16 @@ export default function PanelLoominAI() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           tema, nivel, idiomaEstudiante, enfoque,
-          vocabularioEspecifico, temaGramatical, cantidadEjercicios
+          vocabularioEspecifico, temaGramatical, cantidadEjercicios,
+          alumno: alumnoSeleccionado ? {
+            id: alumnoSeleccionado.id,
+            nombre: alumnoSeleccionado.nombre,
+            nivel: alumnoSeleccionado.nivel_actual,
+            debilidades: alumnoSeleccionado.debilidades,
+            fortalezas: alumnoSeleccionado.fortalezas,
+            intereses: alumnoSeleccionado.intereses,
+            necesidades: alumnoSeleccionado.necesidades
+          } : null
         }),
       });
 
@@ -230,6 +697,18 @@ export default function PanelLoominAI() {
         setDiapositivas(datos.resultado.diapositivas);
         setSlideActual(0);
         mostrarNotificacion(`¡Clase generada! ${datos.resultado.diapositivas.length} diapositivas`, 'exito');
+                  const diapos = datos.resultado.diapositivas;      
+                // Guardar prompts de imagen para la próxima vez
+        const promptsPendientes: any[] = [];
+        for (let i = 0; i < diapos.length; i++) {
+          const d = diapos[i];
+          if ((d.tipo === 'tabla_gramatical' || d.tipo === 'mapa_mental') && d.contenido?.imagen_prompt && !d.contenido?.imagen_url) {
+            promptsPendientes.push({ prompt: d.contenido.imagen_prompt, slideIndex: i });
+          }
+        }
+        if (promptsPendientes.length > 0) {
+          console.log(`🖼️ ${promptsPendientes.length} imágenes pendientes para generar`);
+        }
       } else {
         mostrarNotificacion('No se generó contenido. Intenta con otro tema.', 'error');
       }
@@ -241,7 +720,6 @@ export default function PanelLoominAI() {
     }
   };
 
-  // Compilador de Diccionario para tooltips (PROTEGIDO)
   const diccionarioGlobal: Record<string, any> = {};
   diapositivas.forEach(slide => {
     if (slide.tipo === 'vocabulario' && slide.contenido?.palabras) {
@@ -266,9 +744,8 @@ export default function PanelLoominAI() {
   });
 
   return (
-    <div className="flex min-h-screen bg-[#f8f9fc] font-sans relative overflow-x-hidden">
+    <div className="flex min-h-screen bg-[#f8f9fc] font-sans relative">
       
-      {/* NOTIFICACIÓN */}
       {notificacion && (
         <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 px-6 py-3 rounded-2xl shadow-xl border animate-in slide-in-from-bottom duration-300 ${
           notificacion.tipo === 'exito' ? 'bg-[#1e1b4b] border-indigo-500 text-white' : 'bg-red-600 border-red-400 text-white'
@@ -279,7 +756,6 @@ export default function PanelLoominAI() {
         </div>
       )}
 
-      {/* SIDEBAR */}
       <aside className="w-56 bg-[#f4f5f8] border-r border-gray-200 hidden md:flex flex-col fixed h-full p-5">
         <div className="flex items-center gap-2 font-bold text-xl text-[#1e1b4b] mb-8">
           <div className="w-7 h-7 bg-[#1e1b4b] rounded flex items-center justify-center text-white text-xs shrink-0 font-bold">L</div>
@@ -293,15 +769,274 @@ export default function PanelLoominAI() {
             <div className="flex items-center gap-3"><BookOpen className="w-5 h-5 shrink-0" /> Mis Pizarras</div>
             {pizarrasGuardadas.length > 0 && <span className="bg-[#4338ca] text-white text-[10px] px-2 py-0.5 rounded-full">{pizarrasGuardadas.length}</span>}
           </button>
+                    <button onClick={() => setVistaActual('alumnos')} className={`flex items-center justify-between w-full p-2.5 rounded-md font-semibold transition-colors ${vistaActual === 'alumnos' || vistaActual === 'registro_alumno' || vistaActual === 'perfil_alumno' ? 'bg-white text-[#1e1b4b] shadow-sm border border-gray-100' : 'text-gray-600 hover:bg-gray-100'}`}>
+            <div className="flex items-center gap-3"><Users className="w-5 h-5 shrink-0" /> Mis Alumnos</div>
+            {alumnos.length > 0 && <span className="bg-[#4338ca] text-white text-[10px] px-2 py-0.5 rounded-full">{alumnos.length}</span>}
+          </button>
+                    <button onClick={() => setVistaActual('calendario')} className={`flex items-center justify-between w-full p-2.5 rounded-md font-semibold transition-colors ${vistaActual === 'calendario' ? 'bg-white text-[#1e1b4b] shadow-sm border border-gray-100' : 'text-gray-600 hover:bg-gray-100'}`}>
+            <div className="flex items-center gap-3"><Calendar className="w-5 h-5 shrink-0" /> Calendario</div>
+          </button>
+                    <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login'; }} className="flex items-center gap-3 w-full p-2.5 rounded-md font-semibold text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors mt-4 border-t border-gray-200 pt-4">
+            <X className="w-5 h-5 shrink-0" /> Cerrar sesión
+          </button>
         </nav>
       </aside>
-
-      {/* MAIN */}
-      <main className="ml-0 md:ml-56 flex-1 p-8">
         
+      <main className="ml-0 md:ml-56 flex-1 p-8">
+        {/* VISTA DE ALUMNOS */}
+                {vistaActual === 'calendario' && <CalendarioClases />}
+        {vistaActual === 'alumnos' && (
+                    <div className="max-w-5xl mx-auto w-full">
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-3">
+                <Users className="w-8 h-8 shrink-0 text-[#4338ca]" />
+                <h1 className="text-3xl font-bold text-[#1e1b4b]">Mis Alumnos</h1>
+              </div>
+              <button onClick={() => setVistaActual('registro_alumno')} className="flex items-center gap-2 bg-[#1e1b4b] text-white font-bold py-2.5 px-5 rounded-xl hover:bg-[#2a2663] transition-colors shadow-lg">
+                <Plus className="w-4 h-4" /> Nuevo Alumno
+              </button>
+            </div>
+
+            {alumnos.length === 0 ? (
+              <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm">
+                <Users className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+                <h3 className="text-xl font-bold text-gray-700 mb-2">No tienes alumnos registrados</h3>
+                <p className="text-gray-500 mb-6">Registra a tus estudiantes para generar pizarras personalizadas.</p>
+                <button onClick={() => setVistaActual('registro_alumno')} className="bg-[#1e1b4b] text-white font-bold py-2.5 px-6 rounded-xl hover:bg-[#2a2663] transition-colors shadow-lg">
+                  Registrar primer alumno
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {alumnos.map((alumno) => (
+                  <div key={alumno.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition-all overflow-hidden flex flex-col group">
+                    <div className="bg-indigo-50 p-5 border-b border-indigo-100 flex-1">
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="bg-white text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-md border border-indigo-200">{alumno.nivel_actual || 'Sin nivel'}</span>
+                        <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">{alumno.modalidad === 'online' ? '💻 Online' : '🏫 Presencial'}</span>
+                      </div>
+                      <h3 className="font-bold text-lg text-[#1e1b4b] leading-tight mb-2">{alumno.nombre}</h3>
+                      <p className="text-gray-500 text-xs">{alumno.idioma_nativo || 'Sin idioma'} | {alumno.clases_por_semana || 1}x semana</p>
+                    </div>
+                    <div className="p-4 bg-white flex justify-between items-center">
+                      <button onClick={() => verPerfilAlumno(alumno)} className="flex items-center gap-2 text-sm font-bold text-[#4338ca] hover:bg-indigo-50 px-3 py-2 rounded-lg transition-colors">
+                        <Target className="w-4 h-4" /> Perfil
+                      </button>
+                      <button onClick={() => eliminarAlumno(alumno.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar alumno">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+
+                {/* VISTA DE REGISTRO DE ALUMNO */}
+        {vistaActual === 'registro_alumno' && (
+                    <div className="max-w-2xl mx-auto w-full">
+            <button onClick={() => { limpiarFormularioAlumno(); setVistaActual('alumnos'); }} className="flex items-center gap-2 text-gray-600 font-bold mb-6 hover:text-[#4338ca] transition-colors">
+              <ArrowLeft className="w-5 h-5" /> Volver a alumnos
+            </button>
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+              <h1 className="text-3xl font-bold text-[#1e1b4b] mb-6">Registrar Nuevo Alumno</h1>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 text-sm font-bold mb-1">Nombre completo *</label>
+                  <input type="text" value={formNombre} onChange={(e) => setFormNombre(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]" placeholder="Nombre del estudiante" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Email</label>
+                    <input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]" placeholder="correo@email.com" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Teléfono</label>
+                    <input type="text" value={formTelefono} onChange={(e) => setFormTelefono(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]" placeholder="+56 9..." />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Nivel actual</label>
+                    <select value={formNivelActual} onChange={(e) => setFormNivelActual(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]">
+                      <option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option><option value="C1">C1</option><option value="C2">C2</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Nivel objetivo</label>
+                    <select value={formNivelObjetivo} onChange={(e) => setFormNivelObjetivo(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]">
+                      <option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option><option value="C1">C1</option><option value="C2">C2</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Idioma nativo</label>
+                    <select value={formIdiomaNativo} onChange={(e) => setFormIdiomaNativo(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]">
+                      <option value="Chino Mandarín">Chino Mandarín</option><option value="Inglés">Inglés</option><option value="Español">Español</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Modalidad</label>
+                    <select value={formModalidad} onChange={(e) => setFormModalidad(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]">
+                      <option value="online">Online</option><option value="presencial">Presencial</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Tipo</label>
+                    <select value={formTipoClase} onChange={(e) => setFormTipoClase(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]">
+                      <option value="particular">Particular</option><option value="grupal">Grupal</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Clases/semana</label>
+                    <input type="number" min="1" max="7" value={formClasesPorSemana} onChange={(e) => {
+  const val = parseInt(e.target.value);
+  setFormClasesPorSemana(isNaN(val) ? 1 : val);
+}} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-xs font-bold mb-1">Necesidades específicas</label>
+                  <textarea value={formNecesidades} onChange={(e) => setFormNecesidades(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]" rows={2} placeholder="Ej: Preparar DELE B1, conversación para viajar..." />
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-xs font-bold mb-1">Intereses (temas para personalizar)</label>
+                  <input type="text" value={formIntereses} onChange={(e) => setFormIntereses(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]" placeholder="Ej: fútbol, tecnología, cocina..." />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Debilidades</label>
+                    <textarea value={formDebilidades} onChange={(e) => setFormDebilidades(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]" rows={2} placeholder="Ej: confunde ser/estar..." />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Fortalezas</label>
+                    <textarea value={formFortalezas} onChange={(e) => setFormFortalezas(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]" rows={2} placeholder="Ej: buena pronunciación..." />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-xs font-bold mb-1">Estilo de aprendizaje</label>
+                  <select value={formEstiloAprendizaje} onChange={(e) => setFormEstiloAprendizaje(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]">
+                    <option value="visual">Visual</option><option value="auditivo">Auditivo</option><option value="lectoescritor">Lectoescritor</option><option value="kinestésico">Kinestésico</option>
+                  </select>
+                </div>
+                <button onClick={guardarAlumno} disabled={guardandoAlumno} className="w-full flex justify-center items-center gap-2 p-3 rounded-xl font-bold text-white bg-[#1e1b4b] hover:bg-[#2a2663] transition-colors shadow-lg disabled:opacity-50">
+                  {guardandoAlumno ? 'Guardando...' : 'Registrar Alumno'} <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* VISTA DE EDICIÓN DE ALUMNO */}
+        {vistaActual === 'editar_alumno' && alumnoSeleccionado && (
+          <div className="max-w-2xl mx-auto">
+            <button onClick={() => setVistaActual('perfil_alumno')} className="flex items-center gap-2 text-gray-600 font-bold mb-6 hover:text-[#4338ca] transition-colors">
+              <ArrowLeft className="w-5 h-5" /> Volver al perfil
+            </button>
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+              <h1 className="text-3xl font-bold text-[#1e1b4b] mb-6">Editar: {alumnoSeleccionado.nombre}</h1>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-gray-700 text-sm font-bold mb-1">Nombre completo *</label>
+                  <input type="text" value={formNombre} onChange={(e) => setFormNombre(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm outline-none focus:border-[#4338ca]" />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Nivel actual</label>
+                    <select value={formNivelActual} onChange={(e) => setFormNivelActual(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                      <option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option><option value="C1">C1</option><option value="C2">C2</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Nivel objetivo</label>
+                    <select value={formNivelObjetivo} onChange={(e) => setFormNivelObjetivo(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                      <option value="A1">A1</option><option value="A2">A2</option><option value="B1">B1</option><option value="B2">B2</option><option value="C1">C1</option><option value="C2">C2</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 text-xs font-bold mb-1">Idioma nativo</label>
+                    <select value={formIdiomaNativo} onChange={(e) => setFormIdiomaNativo(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm">
+                      <option value="Chino Mandarín">Chino Mandarín</option><option value="Inglés">Inglés</option><option value="Español">Español</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-xs font-bold mb-1">Debilidades</label>
+                  <textarea value={formDebilidades} onChange={(e) => setFormDebilidades(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm" rows={2} placeholder="Ej: confunde ser/estar..." />
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-xs font-bold mb-1">Fortalezas</label>
+                  <textarea value={formFortalezas} onChange={(e) => setFormFortalezas(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm" rows={2} placeholder="Ej: buena pronunciación..." />
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-xs font-bold mb-1">Intereses</label>
+                  <input type="text" value={formIntereses} onChange={(e) => setFormIntereses(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm" placeholder="Ej: fútbol, cocina..." />
+                </div>
+                <div>
+                  <label className="block text-gray-700 text-xs font-bold mb-1">Necesidades</label>
+                  <textarea value={formNecesidades} onChange={(e) => setFormNecesidades(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2.5 text-sm" rows={2} placeholder="Ej: Preparar DELE B1..." />
+                </div>
+                <button onClick={guardarEdicionAlumno} disabled={guardandoAlumno} className="w-full flex justify-center items-center gap-2 p-3 rounded-xl font-bold text-white bg-[#1e1b4b] hover:bg-[#2a2663] transition-colors disabled:opacity-50">
+                  {guardandoAlumno ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* VISTA DE PERFIL DE ALUMNO */}
+        {vistaActual === 'perfil_alumno' && alumnoSeleccionado && (
+          <div className="max-w-3xl mx-auto">
+            <button onClick={() => setVistaActual('alumnos')} className="flex items-center gap-2 text-gray-600 font-bold mb-6 hover:text-[#4338ca] transition-colors">
+              <ArrowLeft className="w-5 h-5" /> Volver a alumnos
+            </button>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+              <div className="bg-indigo-50 p-6 border-b border-indigo-100">
+                <h1 className="text-3xl font-bold text-[#1e1b4b]">{alumnoSeleccionado.nombre}</h1>
+                <div className="flex gap-3 mt-2">
+                  <span className="bg-indigo-200 text-indigo-800 text-xs font-bold px-3 py-1 rounded-full">{alumnoSeleccionado.nivel_actual || 'Sin nivel'}</span>
+                  <span className="bg-green-200 text-green-800 text-xs font-bold px-3 py-1 rounded-full">{alumnoSeleccionado.idioma_nativo || 'Sin idioma'}</span>
+                </div>
+                              <button onClick={() => cargarDatosEdicion()} className="mt-3 text-sm text-[#4338ca] font-bold hover:underline">
+                ✏️ Editar datos
+              </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div><span className="font-bold">Modalidad:</span> {alumnoSeleccionado.modalidad}</div>
+                  <div><span className="font-bold">Tipo:</span> {alumnoSeleccionado.tipo_clase}</div>
+                  <div><span className="font-bold">Clases/sem:</span> {alumnoSeleccionado.clases_por_semana}</div>
+                </div>
+                {alumnoSeleccionado.necesidades && <p className="text-gray-700"><span className="font-bold">Necesidades:</span> {alumnoSeleccionado.necesidades}</p>}
+                {alumnoSeleccionado.debilidades && <p className="text-orange-700"><span className="font-bold">Debilidades:</span> {alumnoSeleccionado.debilidades}</p>}
+                {alumnoSeleccionado.fortalezas && <p className="text-green-700"><span className="font-bold">Fortalezas:</span> {alumnoSeleccionado.fortalezas}</p>}
+              </div>
+            </div>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8 p-6">
+              <h2 className="text-2xl font-bold text-[#1e1b4b] mb-4">📊 Métricas de Asistencia</h2>
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-green-50 p-4 rounded-xl text-center border border-green-200">
+                  <p className="text-3xl font-bold text-green-700">{alumnoSeleccionado.metricas?.porcentajeAsistencia || 0}%</p>
+                  <p className="text-xs text-green-600 mt-1">Asistencia</p>
+                </div>
+                <div className="bg-indigo-50 p-4 rounded-xl text-center border border-indigo-200">
+                  <p className="text-3xl font-bold text-indigo-700">{alumnoSeleccionado.metricas?.totalTomadas || 0}</p>
+                  <p className="text-xs text-indigo-600 mt-1">Tomadas</p>
+                </div>
+                <div className="bg-red-50 p-4 rounded-xl text-center border border-red-200">
+                  <p className="text-3xl font-bold text-red-700">{alumnoSeleccionado.metricas?.totalCanceladas || 0}</p>
+                  <p className="text-xs text-red-600 mt-1">Canceladas</p>
+                </div>
+              </div>
+            </div>
+            <button onClick={() => generarPizarraPersonalizada(alumnoSeleccionado)} className="w-full flex justify-center items-center gap-2 p-4 rounded-xl font-bold text-white bg-[#1e1b4b] hover:bg-[#2a2663] transition-colors shadow-lg">
+              <Sparkles className="w-5 h-5" /> Generar Pizarra Personalizada para {alumnoSeleccionado.nombre}
+            </button>
+          </div>
+        )}
         {vistaActual === 'inicio' && (
           <>
-            {/* FORMULARIO */}
             <div className="max-w-3xl mb-12 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
               <h1 className="text-3xl font-bold text-[#1e1b4b] mb-6">Planificador de Clase</h1>
               <div className="space-y-5">
@@ -334,7 +1069,6 @@ export default function PanelLoominAI() {
                   </select>
                 </div>
                 
-                {/* PANEL AVANZADO */}
                 <div className="border-t border-gray-100 pt-4 mt-4">
                   <button onClick={() => setMostrarAvanzados(!mostrarAvanzados)} className="flex items-center gap-2 text-[#4338ca] font-bold text-sm hover:underline">
                     <SlidersHorizontal className="w-4 h-4 shrink-0" /> {mostrarAvanzados ? 'Ocultar ajustes avanzados' : 'Mostrar ajustes avanzados'}
@@ -351,7 +1085,6 @@ export default function PanelLoominAI() {
                         <input type="text" value={vocabularioEspecifico} onChange={(e) => setVocabularioEspecifico(e.target.value)} className="w-full border border-gray-300 rounded-lg p-2 text-sm outline-none font-medium bg-white" placeholder="Ej: correr, manzana, profesor..." />
                       </div>
                       
-                      {/* SELECTOR DE CANTIDAD DE EJERCICIOS */}
                       <div>
                         <label className="block text-gray-700 text-xs font-bold mb-1">Cantidad de ejercicios por tema</label>
                         <div className="relative">
@@ -386,13 +1119,70 @@ export default function PanelLoominAI() {
                 </button>
               </div>
             </div>
+                        {/* BOTÓN PANTALLA COMPLETA */}
+            {diapositivas.length > 0 && !pantallaCompleta && (
+              <button onClick={() => setPantallaCompleta(true)} className="fixed top-4 right-4 z-50 bg-[#1e1b4b] text-white px-4 py-2 rounded-xl font-bold shadow-lg hover:bg-[#2a2663] transition-colors">
+                ⛶ Pantalla completa
+              </button>
+            )}
+                                 {pantallaCompleta && (
+              <div className="fixed inset-0 z-[100] bg-white flex flex-col" style={{ height: '100vh' }}>
+                <div className="bg-white shadow-sm px-6 py-3 flex justify-between items-center border-b border-gray-200">
+                  <span className="font-bold text-[#1e1b4b]">Modo presentación</span>
+                  <button onClick={() => setPantallaCompleta(false)} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-red-700 transition-colors">
+                    ✕ Salir
+                  </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto px-4 py-6">
+                  <div className="max-w-6xl mx-auto">
+                    {diapositivas[slideActual]?.tipo === 'titulo' && (
+                      <div className="text-center py-12">
+                        <h2 className="text-6xl font-extrabold text-[#1e1b4b] mb-4">{diapositivas[slideActual].contenido.titulo}</h2>
+                        <p className="text-2xl text-gray-500 font-medium">{diapositivas[slideActual].contenido.subtitulo}</p>
+                      </div>
+                    )}
+                    {diapositivas[slideActual]?.tipo === 'resumen' && <ResumenDiapositiva datos={diapositivas[slideActual].contenido} />}
+                    {diapositivas[slideActual]?.tipo === 'vocabulario' && (
+                      <div className="w-full">
+                              
+                        <h2 className="text-4xl font-bold text-[#1e1b4b] mb-8 flex items-center gap-3">📚 {diapositivas[slideActual].contenido.titulo}</h2>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                          {diapositivas[slideActual].contenido.palabras?.map((p: any, i: number) => <TarjetaVocabulario key={i} palabra={p} />)}
+                        </div>
+                      </div>
+                    )}
+                    {(diapositivas[slideActual]?.tipo === 'tabla_gramatical' || diapositivas[slideActual]?.tipo === 'mapa_mental') && <GramaticaDiapositiva datos={diapositivas[slideActual].contenido} />}
+                    {diapositivas[slideActual]?.tipo === 'pausa_reflexion' && <PausaReflexion datos={diapositivas[slideActual].contenido} />}
+                    {diapositivas[slideActual]?.tipo === 'ejercicio' && <EjercicioDiapositiva datos={diapositivas[slideActual].contenido} />}
+                    {diapositivas[slideActual]?.tipo === 'lectura' && (
+                      <div className="max-w-4xl mx-auto">
+                        <h2 className="text-4xl font-bold text-[#1e1b4b] mb-6">📖 {diapositivas[slideActual].contenido.titulo}</h2>
+                        <div className="bg-orange-50 p-10 rounded-2xl text-2xl text-gray-800 leading-relaxed font-serif mb-8 border border-orange-200 shadow-inner text-justify">
+                          <TextoConTooltips texto={diapositivas[slideActual].contenido.texto} diccionario={diccionarioGlobal} />
+                        </div>
+                      </div>
+                    )}
+                    {diapositivas[slideActual]?.tipo === 'cierre' && <CierreDiapositiva datos={diapositivas[slideActual].contenido} />}
+                  </div>
+                </div>
 
-            {/* PIZARRA VIRTUAL */}
-            {diapositivas.length > 0 && (
+                <div className="bg-gray-100 px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+                  <button onClick={() => setSlideActual(slideActual - 1)} disabled={slideActual === 0} className="px-6 py-3 bg-white text-gray-700 font-bold disabled:opacity-30 rounded-xl shadow-sm border border-gray-200">
+                    <ChevronLeft className="w-5 h-5 inline mr-1" /> Anterior
+                  </button>
+                  <span className="font-bold text-gray-500 text-lg">{slideActual + 1} / {diapositivas.length}</span>
+                  <button onClick={() => setSlideActual(slideActual + 1)} disabled={slideActual === diapositivas.length - 1} className="px-6 py-3 bg-[#4338ca] text-white font-bold disabled:opacity-50 rounded-xl shadow-sm">
+                    Siguiente <ChevronRight className="w-5 h-5 inline ml-1" />
+                  </button>
+                </div>
+              </div>
+            )}
+{/* PIZARRA VIRTUAL */}
+                       {diapositivas.length > 0 && !pantallaCompleta && (
               <div className="max-w-4xl bg-white rounded-3xl shadow-2xl border border-gray-200 flex flex-col min-h-[600px] animate-in fade-in duration-500">
-                <div className="flex-1 p-10 flex flex-col justify-center overflow-y-auto">
+                <div className="flex-1 p-10 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 100px)' }}>
                   
-                  {/* PORTADA */}
                   {diapositivas[slideActual]?.tipo === 'titulo' && (
                     <div className="text-center">
                       <h2 className="text-5xl font-extrabold text-[#1e1b4b] mb-4">{diapositivas[slideActual].contenido.titulo}</h2>
@@ -400,12 +1190,10 @@ export default function PanelLoominAI() {
                     </div>
                   )}
                   
-                  {/* RESUMEN */}
                   {diapositivas[slideActual]?.tipo === 'resumen' && (
                     <ResumenDiapositiva datos={diapositivas[slideActual].contenido} />
                   )}
                   
-                  {/* VOCABULARIO */}
                   {diapositivas[slideActual]?.tipo === 'vocabulario' && (
                     <div className="w-full">
                       <h2 className="text-3xl font-bold text-[#1e1b4b] mb-8 flex items-center gap-3">📚 {diapositivas[slideActual].contenido.titulo}</h2>
@@ -415,62 +1203,18 @@ export default function PanelLoominAI() {
                     </div>
                   )}
 
-                  {/* GRAMÁTICA HTML */}
-                  {diapositivas[slideActual]?.tipo === 'gramatica_html' && (
-                    <div className="w-full">
-                      <div className="flex items-center gap-3 mb-6">
-                        <Brain className="w-7 h-7 text-purple-600 shrink-0" />
-                        <div>
-                          <h2 className="text-3xl font-bold text-[#1e1b4b]">{diapositivas[slideActual].contenido.titulo}</h2>
-                          <p className="text-sm text-gray-500">Tema {diapositivas[slideActual].contenido.tema_numero} de {diapositivas[slideActual].contenido.total_temas}</p>
-                        </div>
-                      </div>
-                      <div className="gramatica-html-wrapper" dangerouslySetInnerHTML={{ __html: diapositivas[slideActual].contenido.html }} />
-                      
-                      {/* Errores comunes */}
-                      {diapositivas[slideActual].contenido.errores_comunes?.length > 0 && (
-                        <div className="mt-8 bg-amber-50 border-2 border-amber-200 rounded-2xl p-6">
-                          <h3 className="text-xl font-bold text-amber-800 mb-4 flex items-center gap-2">
-                            <AlertCircle className="w-6 h-6 shrink-0" /> Errores comunes
-                          </h3>
-                          <div className="space-y-3">
-                            {diapositivas[slideActual].contenido.errores_comunes.map((err: any, i: number) => (
-                              <div key={i} className="bg-white rounded-xl p-4 border border-amber-100">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <span className="bg-red-100 text-red-700 px-3 py-1 rounded-lg text-sm font-bold line-through">{err.error}</span>
-                                  <span className="text-gray-400">→</span>
-                                  <span className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-sm font-bold">{err.correccion}</span>
-                                </div>
-                                <p className="text-sm text-gray-600">💡 {err.explicacion}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                  {(diapositivas[slideActual]?.tipo === 'tabla_gramatical' || diapositivas[slideActual]?.tipo === 'mapa_mental') && (
+                    <GramaticaDiapositiva datos={diapositivas[slideActual].contenido} />
                   )}
 
-                  {/* PAUSA REFLEXIÓN */}
                   {diapositivas[slideActual]?.tipo === 'pausa_reflexion' && (
                     <PausaReflexion datos={diapositivas[slideActual].contenido} />
                   )}
 
-                  {/* EJERCICIO HTML */}
-                  {diapositivas[slideActual]?.tipo === 'ejercicio_html' && (
-                    <div className="w-full">
-                      <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-2xl font-bold text-[#1e1b4b] flex items-center gap-2">
-                          <ListChecks className="w-6 h-6 text-indigo-600" /> {diapositivas[slideActual].contenido.titulo}
-                        </h2>
-                        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                          {diapositivas[slideActual].contenido.ejercicio_numero}/{diapositivas[slideActual].contenido.total_ejercicios}
-                        </span>
-                      </div>
-                      <div className="ejercicio-html-wrapper" dangerouslySetInnerHTML={{ __html: diapositivas[slideActual].contenido.html }} />
-                    </div>
+                  {diapositivas[slideActual]?.tipo === 'ejercicio' && (
+                    <EjercicioDiapositiva datos={diapositivas[slideActual].contenido} />
                   )}
                   
-                  {/* LECTURA */}
                   {diapositivas[slideActual]?.tipo === 'lectura' && (
                     <div className="max-w-3xl mx-auto">
                       <h2 className="text-3xl font-bold text-[#1e1b4b] mb-6">📖 {diapositivas[slideActual].contenido.titulo}</h2>
@@ -486,14 +1230,12 @@ export default function PanelLoominAI() {
                     </div>
                   )}
 
-                  {/* CIERRE */}
                   {diapositivas[slideActual]?.tipo === 'cierre' && (
                     <CierreDiapositiva datos={diapositivas[slideActual].contenido} />
                   )}
 
                 </div>
                 
-                {/* CONTROLES */}
                 <div className="bg-gray-50 p-4 rounded-b-3xl border-t border-gray-100 flex justify-between items-center">
                   <button onClick={() => setSlideActual(slideActual - 1)} disabled={slideActual === 0} className="px-5 py-2 text-gray-600 font-bold disabled:opacity-30 hover:bg-gray-200 rounded-lg flex items-center gap-2 transition-colors">
                     <ChevronLeft className="w-5 h-5 shrink-0"/> Anterior
@@ -514,51 +1256,15 @@ export default function PanelLoominAI() {
             )}
           </>
         )}
-
-        {/* VISTA DE MIS PIZARRAS */}
+    
         {vistaActual === 'pizarras' && (
-          <div className="max-w-5xl mx-auto">
-            <div className="flex items-center gap-3 mb-8">
-              <BookOpen className="w-8 h-8 shrink-0 text-[#4338ca]" />
-              <h1 className="text-3xl font-bold text-[#1e1b4b]">Mis Pizarras Guardadas</h1>
-            </div>
-            
-            {pizarrasGuardadas.length === 0 ? (
-              <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm">
-                <FolderOpen className="w-12 h-12 mx-auto text-gray-300 mb-4 shrink-0" />
-                <h3 className="text-xl font-bold text-gray-700 mb-2">No hay clases guardadas</h3>
-                <button onClick={() => setVistaActual('inicio')} className="bg-[#1e1b4b] text-white font-bold py-2.5 px-6 rounded-xl hover:bg-[#2a2663] transition-colors shadow-lg">
-                  Crear una clase ahora
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pizarrasGuardadas.map((p) => (
-                  <div key={p.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-xl transition-all overflow-hidden flex flex-col group">
-                    <div className="bg-indigo-50 p-5 border-b border-indigo-100 flex-1">
-                      <div className="flex justify-between items-start mb-3">
-                        <span className="bg-white text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-md border border-indigo-200">{p.nivel}</span>
-                        <div className="flex items-center text-gray-400 text-xs font-bold gap-1">
-                          <Calendar className="w-3 h-3 shrink-0" /> {p.fecha}
-                        </div>
-                      </div>
-                      <h3 className="font-bold text-lg text-[#1e1b4b] leading-tight mb-2 line-clamp-2">{p.tema}</h3>
-                      <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-2">{p.diapositivas?.length || 0} Diapositivas</p>
-                    </div>
-                    <div className="p-4 bg-white flex justify-between items-center">
-                      <button onClick={() => abrirPizarraGuardada(p)} className="flex items-center gap-2 text-sm font-bold text-[#4338ca] hover:bg-indigo-50 px-4 py-2 rounded-lg transition-colors">
-                        <Bookmark className="w-4 h-4 shrink-0" /> Abrir Pizarra
-                      </button>
-                      <button onClick={() => borrarPizarra(p.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar clase">
-                        <Trash2 className="w-4 h-4 shrink-0" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+  <MisPizarras
+    pizarrasGuardadas={pizarrasGuardadas}
+    abrirPizarraGuardada={abrirPizarraGuardada}
+    borrarPizarra={borrarPizarra}
+    setVistaActual={setVistaActual}
+  />
+)}
       </main>
     </div>
   );

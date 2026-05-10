@@ -1,289 +1,114 @@
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
-const openai = new OpenAI({
-  baseURL: 'https://api.deepseek.com',
-  apiKey: process.env.DEEPSEEK_API_KEY,
-});
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY!;
+const DEEPSEEK_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 // =============================================
-// SANITIZADOR SIMPLE (no rompe JSON válido)
-// =============================================
-function sanitizarJSON(texto: string): string {
-  return texto
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
-    .replace(/\n(?=.*")/g, '\\n')
-    .trim();
-}
-
-// =============================================
-// LLAMADA SEGURA A DEEPSEEK
+// LLAMADA A DEEPSEEK
 // =============================================
 async function llamarDeepSeek(prompt: string): Promise<any> {
-  const completion = await openai.chat.completions.create({
-    messages: [{ role: "system", content: prompt }],
-    model: "deepseek-chat",
-    response_format: { type: "json_object" }
+  const respuesta = await fetch(DEEPSEEK_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'deepseek-chat',
+      messages: [{ role: 'system', content: prompt }],
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+      max_tokens: 8000
+    })
   });
 
-  const contenido = completion.choices[0].message.content || "{}";
-  const sanitizado = sanitizarJSON(contenido);
+  const data = await respuesta.json();
+  const contenido = data.choices?.[0]?.message?.content || '{}';
+  const limpio = contenido.replace(/[\u0000-\u001F]/g, ' ').trim();
   
-  try {
-    return JSON.parse(sanitizado);
-  } catch (e) {
-    console.error("❌ Error parseo JSON. Reintentando con regex...");
-    const match = sanitizado.match(/\{[\s\S]*\}/);
-    if (match) {
-      try { return JSON.parse(match[0]); } catch {}
-    }
-    return {};
+  try { return JSON.parse(limpio); }
+  catch {
+    const match = limpio.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    throw new Error('No se pudo parsear la respuesta');
   }
 }
 
 // =============================================
-// AGENTE 1: DIRECTOR
+// NORMALIZADOR DE TIPOS DE EJERCICIO
 // =============================================
-async function agenteDirector(inputs: any) {
-  const { tema, nivel, idiomaEstudiante, temaGramatical, vocabularioEspecifico, cantidadEjercicios } = inputs;
-
-  const prompt = `Eres un DIRECTOR ACADÉMICO DE ÉLITE en ELE. Planifica una clase explicativa de español.
-ESCRIBE TODO EN ESPAÑOL, incluidos los nombres de los temas gramaticales.
-
-DATOS:
-- Tema: "${tema}"
-- Nivel: ${nivel}
-- Idioma del estudiante: ${idiomaEstudiante}
-- Temas gramaticales: "${temaGramatical || 'Tú decides (máximo 2)'}"
-- Vocabulario: "${vocabularioEspecifico || 'Tú decides (5-8 palabras)'}"
-- Ejercicios por tema: ${cantidadEjercicios || 3}
-
-ESTRUCTURA FIJA DE LA CLASE:
-1. Portada (título + subtítulo)
-2. Resumen (3 puntos de "lo que aprenderemos")
-3. Vocabulario (tarjetas con palabras clave)
-4. Gramática Tema 1 (explicación visual)
-5. Pausa de reflexión
-6. Ejercicios del Tema 1
-7. Si hay Tema 2: repetir 4-5-6 para Tema 2
-8. Si solo hay 1 tema: Lectura interactiva aquí
-9. Si hay 2 temas: Lectura al final integrando ambos
-10. Cierre (resumen + motivación)
-
-PARA CADA TEMA GRAMATICAL, DECIDE:
-- metodo_visual: "tabla_conjugacion", "tabla_comparativa", "mapa_mental" o "esquema_pasos"
-- estructura_visual: columnas, filas, qué resaltar
-- 2-3 errores comunes de hablantes de ${idiomaEstudiante}
-- ${cantidadEjercicios} tipos de ejercicios diferentes (elige entre: multiple_choice, completar_huecos, ordenar_palabras, verdadero_falso)
-
-Devuelve SOLO este JSON (sin comentarios):
-{
-  "portada": { "titulo": "TÍTULO EN ESPAÑOL", "subtitulo": "Nivel ${nivel}" },
-  "resumen": { "puntos": ["PUNTO 1", "PUNTO 2", "PUNTO 3"] },
-  "vocabulario": { "palabras": ["PALABRA1", "PALABRA2", "PALABRA3", "PALABRA4", "PALABRA5"] },
-  "temas_gramaticales": [
-    {
-      "tema": "NOMBRE DEL TEMA EN ESPAÑOL",
-      "metodo_visual": "tabla_conjugacion",
-      "estructura_visual": { "tipo": "tabla", "columnas": ["COL1", "COL2", "COL3"], "instruccion_filas": "QUÉ PONER", "resaltar": "QUÉ RESALTAR" },
-      "explicacion": "EXPLICACIÓN BREVE EN ESPAÑOL",
-      "ejemplos": ["EJEMPLO 1", "EJEMPLO 2", "EJEMPLO 3"],
-      "errores_comunes": [
-        { "error": "ERROR COMÚN", "correccion": "FORMA CORRECTA", "explicacion": "POR QUÉ OCURRE" }
-      ],
-      "ejercicios": [
-        { "tipo": "completar_huecos", "instruccion": "QUÉ PRACTICAR" },
-        { "tipo": "multiple_choice", "instruccion": "QUÉ PRACTICAR" }
-      ]
-    }
-  ],
-  "texto": { "tipo": "historia", "tono": "infantil", "estructuras_a_incluir": ["ESTRUCTURA1"], "preguntas_comprension": ["¿PREGUNTA 1?", "¿PREGUNTA 2?"] },
-  "cierre": { "resumen": "RESUMEN FINAL EN ESPAÑOL", "motivacion": "FRASE MOTIVADORA EN ESPAÑOL" }
-}`;
-
-  return llamarDeepSeek(prompt);
+function normalizarTipoEjercicio(tipo: string): string {
+  const tipoLower = tipo.toLowerCase().trim();
+  if (tipoLower.includes('multiple') || tipoLower.includes('seleccion') || tipoLower.includes('opción')) return 'multiple_choice';
+  if (tipoLower.includes('hueco') || tipoLower.includes('completar') || tipoLower.includes('fill')) return 'completar_huecos';
+  if (tipoLower.includes('orden') || tipoLower.includes('order')) return 'ordenar_palabras';
+  if (tipoLower.includes('verdad') || tipoLower.includes('fals') || tipoLower.includes('true') || tipoLower.includes('vf')) return 'verdadero_falso';
+  return 'multiple_choice';
 }
 
 // =============================================
-// AGENTE 2: GRAMÁTICA
+// ENSAMBLADOR
 // =============================================
-async function agenteGramatica(planDirector: any, inputs: any) {
-  const { nivel } = inputs;
-  const resultados = [];
-
-  for (const tema of planDirector.temas_gramaticales || []) {
-    const prompt = `Genera HTML visual para enseñar "${tema.tema}" (nivel ${nivel}).
-Usa Tailwind CSS. Colores: indigo #4338ca, verde #10b981, rojo #ef4444, amarillo #f59e0b.
-Método: ${tema.metodo_visual}. Estructura: ${JSON.stringify(tema.estructura_visual)}.
-Ejemplos: ${JSON.stringify(tema.ejemplos)}.
-Incluye sección de "Errores comunes" al final.
-NO uses etiquetas <html>, <head>, <body>. Solo el div contenedor.
-ESCRIBE TODO EL TEXTO EN ESPAÑOL.
-Devuelve JSON: { "html": "CÓDIGO AQUÍ" }`;
-
-    const resultado = await llamarDeepSeek(prompt);
-    resultados.push({ tema: tema.tema, html: resultado.html || "" });
-  }
-  return resultados;
-}
-
-// =============================================
-// AGENTE 3: EJERCICIOS
-// =============================================
-async function agenteEjercicios(planDirector: any, inputs: any) {
-  const { nivel, idiomaEstudiante } = inputs;
-  const resultados = [];
-
-  for (const tema of planDirector.temas_gramaticales || []) {
-    const ejerciciosTema = [];
-    for (const ej of tema.ejercicios || []) {
-      const prompt = `Crea un ejercicio interactivo tipo "${ej.tipo}" sobre "${tema.tema}" para nivel ${nivel}.
-HTML+Tailwind CSS+JavaScript vanilla. Autocontenido. Sin <html>, <head>, <body>.
-Colores: correcto=verde, incorrecto=rojo. Animaciones suaves. Botón de corregir.
-ESCRIBE TODO EN ESPAÑOL, excepto traducciones que van en ${idiomaEstudiante}.
-Devuelve JSON: { "html": "CÓDIGO AQUÍ" }`;
-
-      const resultado = await llamarDeepSeek(prompt);
-      ejerciciosTema.push({ tipo: ej.tipo, html: resultado.html || "" });
-    }
-    resultados.push({ tema: tema.tema, ejercicios: ejerciciosTema });
-  }
-  return resultados;
-}
-
-// =============================================
-// AGENTE 4: TEXTO
-// =============================================
-async function agenteTexto(planDirector: any, inputs: any) {
-  const { nivel, idiomaEstudiante } = inputs;
-  const tp = planDirector.texto || {};
-
-  const prompt = `Escribe un texto en español nivel ${nivel}. Tipo: ${tp.tipo || 'historia'}. Tono: ${tp.tono || 'infantil'}.
-Gramática a incluir: ${JSON.stringify(tp.estructuras_a_incluir || [])}.
-Vocabulario a usar: ${JSON.stringify(planDirector.vocabulario?.palabras || [])}.
-SIN ASTERISCOS. Solo texto plano.
-Incluye glosario_interactivo con TODAS las palabras clave. Cada entrada: palabra_o_frase, tipo_palabra (sustantivo/verbo/adjetivo/conector), traduccion (en ${idiomaEstudiante}, usa CARACTERES NO PINYIN), ejemplo_es, ejemplo_traducido.
-Incluye las preguntas: ${JSON.stringify(tp.preguntas_comprension || [])}.
-Devuelve JSON: { "titulo": "...", "texto": "...", "preguntas": [...], "glosario_interactivo": [...] }`;
-
-  return llamarDeepSeek(prompt);
-}
-
-// =============================================
-// ENSAMBLADOR (ESTRUCTURA CORRECTA DE 8 PASOS)
-// =============================================
-function ensamblarClase(plan: any, gramatica: any[], ejercicios: any[], texto: any, inputs: any) {
-  const { nivel } = inputs;
+function agenteEnsamblador(plan: any) {
   const diapositivas: any[] = [];
+  diapositivas.push({ tipo: "titulo", contenido: plan.portada || { titulo: "Clase", subtitulo: "" } });
+  diapositivas.push({ tipo: "resumen", contenido: { titulo: "Lo que aprenderemos", puntos: plan.resumen?.puntos || [] } });
 
-  // 1. PORTADA
-  diapositivas.push({
-    tipo: "titulo",
-    contenido: {
-      titulo: plan.portada?.titulo || "Clase de Español",
-      subtitulo: plan.portada?.subtitulo || `Nivel ${nivel}`
-    }
-  });
-
-  // 2. RESUMEN
-  diapositivas.push({
-    tipo: "resumen",
-    contenido: {
-      titulo: "Lo que aprenderemos hoy",
-      puntos: plan.resumen?.puntos?.length ? plan.resumen.puntos : ["Tema 1", "Tema 2", "Práctica"]
-    }
-  });
-
-  // 3. VOCABULARIO
-  const palabras = (plan.vocabulario?.palabras || ["ejemplo", "palabra", "español"]).map((p: string) => ({
-    espanol: p,
-    fonetica: p.toLowerCase().replace(/([aeiouáéíóú])/g, '-$1-').split('-').filter(Boolean).join('-'),
-    traduccion: "[Traducción]"
+  const palabras = (plan.vocabulario?.palabras || []).map((p: any) => ({
+    espanol: p.espanol,
+    fonetica: p.fonetica || p.espanol?.toLowerCase().replace(/([aeiouáéíóú])/g, '-$1-').split('-').filter(Boolean).join('-') || '',
+    traduccion: p.traduccion || "[Traducción]",
+    pinyin: p.pinyin || ""
   }));
-  diapositivas.push({
-    tipo: "vocabulario",
-    contenido: { titulo: "Vocabulario clave", palabras }
-  });
+  diapositivas.push({ tipo: "vocabulario", contenido: { titulo: "Vocabulario clave", palabras } });
 
-  // 4-6. Por cada tema gramatical: GRAMÁTICA → PAUSA → EJERCICIOS
-  const temas = plan.temas_gramaticales || [];
-  
-  for (let i = 0; i < temas.length; i++) {
-    // 4. GRAMÁTICA
+  for (let i = 0; i < (plan.temas_gramaticales || []).length; i++) {
+    const tema = plan.temas_gramaticales[i];
     diapositivas.push({
-      tipo: "gramatica_html",
+      tipo: tema.tipo_visual === 'mapa_mental' ? 'mapa_mental' : 'tabla_gramatical',
       contenido: {
-        titulo: temas[i].tema || `Tema ${i + 1}`,
-        tema_numero: i + 1,
-        total_temas: temas.length,
-        html: gramatica[i]?.html || "<div class='p-8 text-center text-gray-500'>Contenido en preparación</div>",
-        errores_comunes: temas[i].errores_comunes || []
+        titulo: tema.tema, tema_numero: i + 1, total_temas: plan.temas_gramaticales.length,
+        explicacion: tema.explicacion, ejemplos: tema.ejemplos,
+        tipo_visual: tema.tipo_visual, datos_visual: tema.datos_visual,
+             errores_comunes: tema.errores_comunes,
+        imagen_url: tema.imagen_url || null,
+        imagen_prompt: tema.imagen_prompt || `Spanish grammar illustration: ${tema.tema}, educational style, clean design, colorful`
       }
     });
+    diapositivas.push({ tipo: "pausa_reflexion", contenido: { titulo: "Momento de reflexión", mensaje: `¿Dudas sobre "${tema.tema}"?`, pregunta: "¿Todo claro?" } });
 
-    // 5. PAUSA
-    diapositivas.push({
-      tipo: "pausa_reflexion",
-      contenido: {
-        titulo: "Momento de reflexión",
-        mensaje: `¿Tienes alguna duda sobre "${temas[i].tema}"?`,
-        pregunta: "¿Todo claro hasta aquí?"
-      }
-    });
-
-    // 6. EJERCICIOS
-    const ejerciciosTema = ejercicios[i]?.ejercicios || [];
-    if (ejerciciosTema.length > 0) {
-      ejerciciosTema.forEach((ej: any, j: number) => {
-        diapositivas.push({
-          tipo: "ejercicio_html",
-          contenido: {
-            titulo: `Práctica: ${temas[i].tema} (${j + 1}/${ejerciciosTema.length})`,
-            ejercicio_numero: j + 1,
-            total_ejercicios: ejerciciosTema.length,
-            html: ej.html || "<div class='p-8 text-center text-gray-500'>Ejercicio en preparación</div>"
-          }
-        });
-      });
-    } else {
+    for (let j = 0; j < (tema.ejercicios || []).length; j++) {
       diapositivas.push({
-        tipo: "ejercicio_html",
+        tipo: "ejercicio",
         contenido: {
-          titulo: `Práctica: ${temas[i].tema} (1/1)`,
-          ejercicio_numero: 1,
-          total_ejercicios: 1,
-          html: "<div class='p-8 text-center text-gray-500'>Completa los espacios con la forma correcta.</div>"
+          titulo: `Práctica: ${tema.tema} (${j + 1}/${tema.ejercicios.length})`,
+          tipo_ejercicio: normalizarTipoEjercicio(tema.ejercicios[j].tipo),
+          instruccion: tema.ejercicios[j].instruccion,
+          preguntas: tema.ejercicios[j].preguntas,
+          ejercicio_numero: j + 1, total_ejercicios: tema.ejercicios.length
         }
       });
     }
   }
 
-  // 7. LECTURA
-  if (texto?.texto) {
+  if (plan.texto?.contenido) {
     diapositivas.push({
       tipo: "lectura",
       contenido: {
-        titulo: texto.titulo || "Lectura",
-        texto: texto.texto || "Texto no disponible.",
-        preguntas: texto.preguntas || ["¿Qué has aprendido?"],
-        glosario_interactivo: texto.glosario_interactivo || []
+        titulo: plan.texto.titulo, texto: plan.texto.contenido,
+        preguntas: plan.texto.preguntas || [],
+        glosario_interactivo: (plan.texto.glosario || []).map((g: any) => ({
+          palabra_o_frase: g.palabra, traduccion: g.traduccion,
+          tipo_palabra: g.tipo, ejemplo_es: g.ejemplo_es || "", ejemplo_traducido: g.ejemplo_traducido || ""
+        }))
       }
     });
   }
 
-  // 8. CIERRE
-  diapositivas.push({
-    tipo: "cierre",
-    contenido: {
-      titulo: "¡Excelente trabajo!",
-      resumen: plan.cierre?.resumen || "Hoy has aprendido nuevos conceptos de español.",
-      motivacion: plan.cierre?.motivacion || "¡Sigue practicando!"
-    }
-  });
-
+  diapositivas.push({ tipo: "cierre", contenido: plan.cierre || { resumen: "", motivacion: "" } });
   return diapositivas;
 }
 
@@ -293,46 +118,75 @@ function ensamblarClase(plan: any, gramatica: any[], ejercicios: any[], texto: a
 export async function POST(request: Request) {
   try {
     const cuerpo = await request.json();
-    const { tema, nivel, idiomaEstudiante, vocabularioEspecifico, temaGramatical, cantidadEjercicios } = cuerpo;
+    const { tema, nivel, idiomaEstudiante, vocabularioEspecifico, temaGramatical, cantidadEjercicios, alumno } = cuerpo;
 
     if (!tema || !nivel) {
-      return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 });
+      return NextResponse.json({ error: 'Faltan datos' }, { status: 400 });
     }
 
-    const inputs = {
-      tema, nivel,
-      idiomaEstudiante: idiomaEstudiante || 'Chino Mandarín',
-      temaGramatical: temaGramatical || '',
-      vocabularioEspecifico: vocabularioEspecifico || '',
-      cantidadEjercicios: cantidadEjercicios || 3
-    };
+    // Historial del alumno
+    let datosAlumno = alumno || null;
+    let historial = '';
+    if (datosAlumno?.id) {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+      const { data: clases } = await supabaseAdmin
+        .from('historial_clases')
+        .select('tema, ejercicios_correctos, ejercicios_totales, created_at')
+        .eq('alumno_id', datosAlumno.id).order('created_at', { ascending: false }).limit(5);
 
-    console.log("🚀 Agente 1: Director...");
-    const plan = await agenteDirector(inputs);
-    console.log("✅ Plan:", JSON.stringify(plan.temas_gramaticales?.map((t: any) => t.tema)));
+      if (clases && clases.length > 0) {
+        const totalCorrectos = clases.reduce((sum: number, c: any) => sum + (c.ejercicios_correctos || 0), 0);
+        const totalEjercicios = clases.reduce((sum: number, c: any) => sum + (c.ejercicios_totales || 0), 0);
+        const porcentaje = totalEjercicios > 0 ? Math.round((totalCorrectos / totalEjercicios) * 100) : 0;
+        historial = `HISTORIAL: Últimas clases: ${clases.map((c: any) => c.tema).filter((t: string) => !t?.startsWith('Ejercicio:')).join(', ') || 'Ninguna'}. Ejercicios: ${totalCorrectos}/${totalEjercicios} (${porcentaje}%).`;
+      }
+    }
 
-    console.log("🚀 Agentes 2, 3, 4 en paralelo...");
-    const [g, e, t] = await Promise.allSettled([
-      agenteGramatica(plan, inputs),
-      agenteEjercicios(plan, inputs),
-      agenteTexto(plan, inputs)
-    ]);
+    console.log("🚀 Generando plan...");
 
-    const gramatica = g.status === 'fulfilled' ? g.value : [];
-    const ejercicios = e.status === 'fulfilled' ? e.value : [];
-    const texto = t.status === 'fulfilled' ? t.value : {};
+    const prompt = `Planifica una clase de español nivel ${nivel} sobre "${tema}". Idioma del estudiante: ${idiomaEstudiante}. Gramática: "${temaGramatical}". Separa los temas por coma y CREA UN OBJETO POR CADA TEMA en "temas_gramaticales". Si no se especifica, elige 1-2 temas relevantes. Vocabulario: "${vocabularioEspecifico || 'elige 6-8 palabras clave'}". Ejercicios por tema: ${cantidadEjercicios || 2}.
 
-    console.log("🚀 Ensamblando clase...");
-    const diapositivas = ensamblarClase(plan, gramatica, ejercicios, texto, inputs);
-    console.log(`✅ ${diapositivas.length} diapositivas`);
+Responde SOLO con este JSON exacto (sin texto fuera del JSON):
+{
+  "portada": { "titulo": "...", "subtitulo": "Nivel ${nivel}" },
+  "resumen": { "puntos": ["...", "...", "..."] },
+  "vocabulario": { "palabras": [{"espanol": "...", "traduccion": "CARACTER EN ${idiomaEstudiante}", "pinyin": "pinyin si es chino", "fonetica": "separación silábica"}] },
+  "temas_gramaticales": [{
+    "tema": "...", "explicacion": "...", "ejemplos": ["...", "..."],
+    "tipo_visual": "tabla_conjugacion",
+    "datos_visual": { "columnas": ["...", "..."], "filas": [["...", "..."]] },
+    "errores_comunes": [{"error": "...", "correccion": "..."}],
+          "imagen_prompt": "MANDATORY: English description for educational illustration, 10-15 words, clean colorful style. You MUST include this field for EVERY tema_gramatical.",
+    "imagen_prompt": "English description for educational illustration, 10-15 words, clean style",
+    "ejercicios": [{
+      "tipo": "multiple_choice", "instruccion": "...",
+      "preguntas": [{"frase": "Yo ___ español", "respuesta": "hablo", "opciones": ["hablo", "hablas", "habla", "hablan"]}]
+    }]
+  }],
+  "texto": { "titulo": "...", "contenido": "TEXTO SIN ASTERISCOS", "preguntas": ["¿?"], "glosario": [{"palabra": "...", "traduccion": "TRADUCCIÓN REAL", "tipo": "sustantivo", "ejemplo_es": "Frase en español", "ejemplo_traducido": "Traducción"}] },
+  "cierre": { "resumen": "...", "motivacion": "..." }
+}
 
-    return NextResponse.json({
-      resultado: { diapositivas },
-      metadata: { total: diapositivas.length }
-    });
+REGLAS:
+- Vocabulario: CADA palabra con su traducción REAL al ${idiomaEstudiante} (si es chino: caracteres + pinyin).
+- Texto: NO uses asteriscos ni markdown. Solo texto plano.
+- Glosario: mínimo 12-15 palabras del texto. Cada una con ejemplo_es y ejemplo_traducido reales.
+- Errores comunes: 2 por tema.
+- GENERA EXACTAMENTE ${cantidadEjercicios} ejercicios por cada tema gramatical. NI UNO MÁS, NI UNO MENOS.
+- Para nivel A1: textos con 3-4 oraciones simples conectadas por un tema común.
+- CAMPO OBLIGATORIO: cada tema gramatical DEBE incluir "imagen_prompt" con una descripción en inglés de 10-15 palabras para una ilustración educativa.
+${datosAlumno ? `DATOS DEL ALUMNO: ${datosAlumno.nombre}, nivel ${datosAlumno.nivel}. Debilidades: ${datosAlumno.debilidades || 'Ninguna'}. Fortalezas: ${datosAlumno.fortalezas || 'Ninguna'}. Intereses: ${datosAlumno.intereses || 'No especificados'}. ${historial} USA sus intereses en ejemplos. REFUERZA sus debilidades.` : ''}`;
 
-  } catch (error) {
+    const plan = await llamarDeepSeek(prompt);
+    const diapositivas = agenteEnsamblador(plan);
+
+    console.log(`✅ ${diapositivas.length} diapositivas generadas`);
+
+    return NextResponse.json({ resultado: { diapositivas } });
+
+  } catch (error: any) {
     console.error("❌ Error:", error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Error interno' }, { status: 500 });
   }
 }
